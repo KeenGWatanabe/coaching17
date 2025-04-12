@@ -1,3 +1,12 @@
+terraform {
+  backend "s3" {
+    bucket         = "rgers3.sctp-sandbox.com"  # Must match the bucket name above
+    key            = "terraform.tfstate"        # State file path
+    region         = "us-east-1"                # Same as provider
+    encrypt        = true                       # Use encryption
+    dynamodb_table = "terraform-state-locks"    # If using DynamoDB
+  }
+}
 provider "aws" {
   region = "us-east-1" # Change if needed
 }

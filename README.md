@@ -1,3 +1,15 @@
+# for production use tf-backend for tfstate files
+terraform {
+  backend "s3" {
+    bucket         = "rgers3.sctp-sandbox.com"  # Must match the bucket name above
+    key            = "terraform.tfstate"        # State file path
+    region         = "us-east-1"                # Same as provider
+    encrypt        = true                       # Use encryption
+    dynamodb_table = "terraform-state-locks"    # If using DynamoDB
+  }
+}
+
+
 Your `main.tf` snippet sets up ECS Fargate with ECR, but it’s **missing critical networking components (VPC, subnets, security groups)**. Below is an **expanded, working example** with all necessary resources, including a VPC, subnets, and security groups.
 
 ---
