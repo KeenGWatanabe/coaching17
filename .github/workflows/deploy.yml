@@ -23,8 +23,12 @@ jobs:
       # 1 Checkout code (includes /terraform folder)
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.2"  # Match your local version
 
-      # 2 Configure AWS credentials
+      # 3 Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -32,7 +36,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
           
-      # 3. Initialize Terraform (with backend config)
+      # 3a. Initialize Terraform (with backend config)
       - name: Terraform Init/Apply
         working-directory: ./terraform
         run: |
