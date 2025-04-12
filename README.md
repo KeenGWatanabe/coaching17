@@ -1,7 +1,7 @@
 # for production use tf-backend for tfstate files
 terraform {
   backend "s3" {
-    bucket         = "rgers3.sctp-sandbox.com"  # Must match the bucket name above
+    bucket         = "rgers3.tfstate-backend.com"  # Must match the bucket name above
     key            = "terraform.tfstate"        # State file path
     region         = "us-east-1"                # Same as provider
     encrypt        = true                       # Use encryption

@@ -5,7 +5,8 @@ on:
     branches: [ "main" ]
 
 env:
-  AWS_REGION: "us-east-1"                   # Change if needed
+  AWS_REGION: "us-east-1"       
+  TF_BACKEND_BUCKET: "rgers3.tfstate-backend.com" # Change if needed
   ECR_REPOSITORY: "myapp-ecr"               # Must match your Terraform ECR name
   ECS_SERVICE: "myapp-service"              # Must match your ECS service name
   ECS_CLUSTER: "myapp-ecs"                  # Must match your ECS cluster name
