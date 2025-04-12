@@ -154,6 +154,31 @@ resource "aws_iam_role" "ecs_exec_role" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "ecs_s3_access" {
+  name = "${local.prefix}-s3-access"
+  role = aws_iam_role.ecs_exec_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::rgers3.sctp-sandbox.com",
+          "arn:aws:s3:::rgers3.sctp-sandbox.com/*"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "ecs_exec_policy" {
   role       = aws_iam_role.ecs_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
