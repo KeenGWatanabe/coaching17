@@ -1,0 +1,72 @@
+name: Deploy Python App to ECS
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  AWS_REGION: "us-east-1"                   # Change if needed
+  ECR_REPOSITORY: "myapp-ecr"               # Must match your Terraform ECR name
+  ECS_SERVICE: "myapp-service"              # Must match your ECS service name
+  ECS_CLUSTER: "myapp-ecs"                  # Must match your ECS cluster name
+  DOCKER_IMAGE: "app-image"                 # Local Docker image name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write      # Required for AWS OIDC auth
+
+    steps:
+      # Checkout code (includes /terraform folder)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      # Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      # Initialize and apply Terraform (from /terraform subdirectory)
+      - name: Terraform Apply
+        working-directory: ./terraform  # <-- KEY CHANGE: Targets /terraform folder
+        run: |
+          terraform init
+          terraform validate
+          terraform apply -auto-approve
+
+      # Login to ECR (after Terraform creates it)
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Build and push Docker image (from root directory)
+      - name: Build, Tag, Push Docker Image
+        run: |
+          ECR_URI=$(aws ecr describe-repositories \
+            --repository-names ${{ env.ECR_REPOSITORY }} \
+            --query 'repositories[0].repositoryUri' \
+            --output text)
+          
+          docker build -t ${{ env.DOCKER_IMAGE }} .
+          docker tag ${{ env.DOCKER_IMAGE }}:latest $ECR_URI:latest
+          docker push $ECR_URI:latest
+
+      # Force ECS service update
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
