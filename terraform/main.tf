@@ -3,8 +3,8 @@ terraform {
     bucket         = "rgers3.tfstate-backend.com"  # Must match the bucket name above
     key            = "coaching17/terraform.tfstate"        # State file path
     region         = "us-east-1"                # Same as provider
-    # dynamodb_table = "terraform-state-locks"    # If using DynamoDB
-    use_lockfile   = true                       # replaces dynamodb_table                
+    dynamodb_table = "terraform-state-locks"    # If using DynamoDB
+    # use_lockfile   = true                       # replaces dynamodb_table                
     encrypt        = true                       # Use encryption
   }
 }
@@ -91,6 +91,7 @@ resource "aws_ecr_repository" "app" {
 
 # --- ECS Cluster & Service ---
 module "ecs" {
+  depends_on = [ aws_ecr_repository.app ]
   source  = "terraform-aws-modules/ecs/aws"
   version = "~> 5.0"
 
@@ -175,7 +176,8 @@ resource "aws_iam_role_policy" "ecs_s3_access" {
         ]
         Resource = [
           "arn:aws:s3:::rgers3.tfstate-backend.com",
-          "arn:aws:s3:::rgers3.tfstate-backend.com/*"
+          "arn:aws:s3:::rgers3.tfstate-backend.com/*",
+          "arn:aws:dynamodb:us-east-1:255945442255:table/terraform-state-locks"
         ]
       }
     ]
