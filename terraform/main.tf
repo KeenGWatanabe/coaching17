@@ -1,9 +1,10 @@
 terraform {
   backend "s3" {
-    bucket         = "rgers3.sctp-sandbox.com"  # Must match the bucket name above
+    bucket         = "rgers3.tfstate-backend.com"  # Must match the bucket name above
     key            = "coaching17/terraform.tfstate"        # State file path
     region         = "us-east-1"                # Same as provider
-    dynamodb_table = "terraform-state-locks"    # If using DynamoDB
+    # dynamodb_table = "terraform-state-locks"    # If using DynamoDB
+    use_lockfile   = true                       # replaces dynamodb_table                
     encrypt        = true                       # Use encryption
   }
 }
@@ -104,13 +105,14 @@ module "ecs" {
 
   services = {
     myapp-service = {
-      cpu    = 512
-      memory = 1024
       # Use a static map structure for container_definitions
       container_definitions = {
-        "container1" = {
+        (var.container_name) = { #dynamic key fr var.tf
+          name      = var.container_name #reused here
           essential = true
           image     = "${aws_ecr_repository.app.repository_url}:latest"
+          cpu       = 512
+          memory    = 1024 # Important: Add these dummy entries to prevent unknown values
           port_mappings = [
             {
               containerPort = 8080
@@ -119,12 +121,10 @@ module "ecs" {
             }
           ]
           # Add required fields
-          name      = "myapp-container"
-          cpu       = 512
-          memory    = 1024
-          # Important: Add these dummy entries to prevent unknown values
-          environment = []
+          environment = [] 
           secrets     = []
+          mount_points = []
+          volumes_from = []
         }
       }
       assign_public_ip                   = true
@@ -139,7 +139,7 @@ module "ecs" {
 }
 # --- IAM Role for ECS Exec ---
 resource "aws_iam_role" "ecs_exec_role" {
-  name = "${local.prefix}-ecs-exec-role"
+  name_prefix = "${local.prefix}-ecs-exec-role" #add random suffix
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -153,10 +153,13 @@ resource "aws_iam_role" "ecs_exec_role" {
       }
     ]
   })
+  lifecycle {
+    create_before_destroy = true  # Helps with replacements
+  }
 }
 
 resource "aws_iam_role_policy" "ecs_s3_access" {
-  name = "${local.prefix}-s3-access"
+  name_prefix = "${local.prefix}-s3-access"
   role = aws_iam_role.ecs_exec_role.id
 
   policy = jsonencode({
@@ -171,12 +174,15 @@ resource "aws_iam_role_policy" "ecs_s3_access" {
           "s3:DeleteObject"
         ]
         Resource = [
-          "arn:aws:s3:::rgers3.sctp-sandbox.com",
-          "arn:aws:s3:::rgers3.sctp-sandbox.com/*"
+          "arn:aws:s3:::rgers3.tfstate-backend.com",
+          "arn:aws:s3:::rgers3.tfstate-backend.com/*"
         ]
       }
     ]
   })
+  lifecycle {
+    create_before_destroy = true  # Helps with replacements
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_exec_policy" {
@@ -195,4 +201,8 @@ output "ecs_service_name" {
 output "ecs_exec_role_arn" {
   value = aws_iam_role.ecs_exec_role.arn  # Reference the actual IAM role resource
   description = "ARN of the ECS task execution IAM role"
+}
+output "container_name" {
+  value       = var.container_name
+  description = "Name of the deployed container"
 }
